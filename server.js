@@ -64,10 +64,12 @@ app.post('/documents', async (req, res) => {
 
       const response = await drive.files.list({
           q: "mimeType='application/vnd.google-apps.document'",
-          fields: 'files(id, name)',
+          fields: 'files(id, name, description, ownedByMe, modifiedByMeTime)',
       });
 
-      res.json(response.data.files); 
+      const files = response.data.files.filter((file) => file.ownedByMe)
+
+      res.json(files); 
 });
 
 app.get('/documents/:docId', async (req, res) => {
