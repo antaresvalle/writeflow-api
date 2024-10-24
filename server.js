@@ -42,15 +42,18 @@ app.post('/verify-token', async (req, res) => { // apart from verifying the toke
 });
 
 app.post('/generate-access-token', async (req, res) => { 
-    // console.log('req', req)
+
       const code = req.body.code;
+      if(!code){
+        return res.status(400).json({error: 'Code is missing'})
+      }
+
       const { tokens } = await oauth2Client.getToken(code);
       res.send({Message: 'Authorization successful! You can now access Google Docs.', tokens});
 });
 
 app.post('/documents', async (req, res) => {
     const token = req.body.token;
-    console.log('token', token)
     if(!token){
       return res.status(400).json({error: 'Token is missing'})
     }
@@ -61,7 +64,6 @@ app.post('/documents', async (req, res) => {
 
       const drive = google.drive({version: "v3", auth: oauth2Client});
 
-
       const response = await drive.files.list({
           q: "mimeType='application/vnd.google-apps.document'",
           fields: 'files(id, name, description, ownedByMe, modifiedByMeTime)',
@@ -69,17 +71,31 @@ app.post('/documents', async (req, res) => {
 
       const files = response.data.files.filter((file) => file.ownedByMe)
 
+      oauth2Client.setCredentials({
+        access_token: null
+      });
+
       res.json(files); 
 });
 
-app.get('/documents/:docId', async (req, res) => {
+app.post('/documents/:docId', async (req, res) => {
+    const token = req.body.token;
+
+    if(!token){
+        return res.status(400).json({error: 'Token is missing'})
+    }
+
+    oauth2Client.setCredentials({
+        access_token: token
+    });
+    
     const docs = google.docs({ version: 'v1', auth: oauth2Client });
     const documentId = req.params.docId;
 
     if(!documentId){
       return res.status(400).json({error: 'Document is undefined'})
     }
-  
+
     const response = await docs.documents.get({
       documentId: documentId,
     });
@@ -98,6 +114,10 @@ app.get('/documents/:docId', async (req, res) => {
           }
         });
       }
+    });
+
+    oauth2Client.setCredentials({
+        access_token: null
     });
   
     res.json({ wordCount });
