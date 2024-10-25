@@ -25,20 +25,23 @@ app.get("/", (_req, res) => {
 
 app.post('/verify-token', async (req, res) => { // apart from verifying the token, generates URL to grant access to services/scopes
     
-    console.log('req body: ', req.body)
     const verifyToken = await oauth2Client.verifyIdToken({
         idToken: req.body.response.credential,
         audience: req.body.response.clientId
     })
 
-    console.log('Verify Token: ', verifyToken)
+    const userInfo = {
+        name: verifyToken.payload.name,
+        email: verifyToken.payload.email,
+        picture: verifyToken.payload.picture
+    }
 
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/documents.readonly'],
     });
 
-    res.send({authUrl})
+    res.send({authUrl, userInfo})
 });
 
 app.post('/generate-access-token', async (req, res) => { 
@@ -78,6 +81,7 @@ app.post('/documents', async (req, res) => {
       res.json(files); 
 });
 
+// DOCUMENT WORD COUNT
 app.post('/documents/:docId', async (req, res) => {
     const token = req.body.token;
 
@@ -101,15 +105,12 @@ app.post('/documents/:docId', async (req, res) => {
     });
   
     const docContent = response.data.body.content;
-    console.log('Doc Content', docContent)
   
     let wordCount = 0;
     docContent.forEach(element => {
-        console.log('Element: ', element)
       if (element.paragraph) {
         element.paragraph.elements.forEach(e => {
           if (e.textRun) {
-            console.log('E textRun.content: ', e.textRun.content)
             wordCount += e.textRun.content.split(/\s+/).filter(word => word.length > 0).length;
           }
         });
